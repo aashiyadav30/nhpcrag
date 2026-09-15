@@ -232,7 +232,12 @@ async def clear_session() -> Dict[str, Any]:
     }
 
 
+# Mount uploaded PDFs directory for PDF preview
+if UPLOAD_DIR.exists():
+    app.mount("/uploaded_pdfs", StaticFiles(directory=str(UPLOAD_DIR)), name="uploaded_pdfs")
+
 # Mount Frontend static files
 FRONTEND_DIR = BASE_DIR / "frontend"
 if FRONTEND_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
+

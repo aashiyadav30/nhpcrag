@@ -207,25 +207,14 @@ document.addEventListener('DOMContentLoaded', () => {
         scrollToBottom();
     }
 
+    // DOM Elements - PDF Preview Modal
+    const pdfModal = document.getElementById('pdf-modal');
+    const pdfModalFilename = document.getElementById('pdf-modal-filename');
+    const pdfModalIframe = document.getElementById('pdf-modal-iframe');
+    const pdfModalOpenTab = document.getElementById('pdf-modal-open-tab');
+    const pdfModalClose = document.getElementById('pdf-modal-close');
+
     // ================= UPLOAD HANDLERS =================
-
-    // Right Sidebar Dropzone click
-    dropzone.addEventListener('click', () => rightPdfInput.click());
-
-    dropzone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropzone.classList.add('dragover');
-    });
-
-    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
-
-    dropzone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropzone.classList.remove('dragover');
-        if (e.dataTransfer.files.length > 0) {
-            handleFileUpload(e.dataTransfer.files);
-        }
-    });
 
     rightPdfInput.addEventListener('change', () => {
         if (rightPdfInput.files.length > 0) {
@@ -288,7 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ================= DOCUMENT LISTING =================
+    // ================= DOCUMENT LISTING & PREVIEW =================
 
     async function fetchDocuments() {
         try {
@@ -312,6 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
         docs.forEach(doc => {
             const item = document.createElement('div');
             item.className = 'doc-item';
+            item.setAttribute('title', 'Click to review document');
             item.innerHTML = `
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
                 <div class="doc-info">
@@ -323,6 +313,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 </button>
             `;
 
+            // Click item -> review document in modal
+            item.addEventListener('click', (e) => {
+                if (e.target.closest('.delete-doc-btn')) return;
+                openPdfModal(doc.filename);
+            });
+
+            // Click delete button -> delete document
             const delBtn = item.querySelector('.delete-doc-btn');
             delBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -351,6 +348,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // ================= PDF MODAL CONTROLS =================
+
+    function openPdfModal(filename, pageNumber = 1) {
+        const pdfUrl = `/uploaded_pdfs/${encodeURIComponent(filename)}#page=${pageNumber}`;
+        pdfModalFilename.textContent = pageNumber > 1 ? `${filename} (Page ${pageNumber})` : filename;
+        pdfModalIframe.src = pdfUrl;
+        pdfModalOpenTab.href = pdfUrl;
+        pdfModal.classList.remove('hidden');
+    }
+
+    function closePdfModal() {
+        pdfModal.classList.add('hidden');
+        pdfModalIframe.src = '';
+    }
+
+    if (pdfModalClose) {
+        pdfModalClose.addEventListener('click', closePdfModal);
+    }
+
+    if (pdfModal) {
+        pdfModal.addEventListener('click', (e) => {
+            if (e.target === pdfModal) {
+                closePdfModal();
+            }
+        });
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && pdfModal && !pdfModal.classList.contains('hidden')) {
+            closePdfModal();
+        }
+    });
 
     // ================= CHAT FORM SUBMIT =================
 
@@ -427,7 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let sourcesHtml = '';
         if (data.sources && data.sources.length > 0) {
             const sourcePills = data.sources.map(src => `
-                <div class="source-badge">
+                <div class="source-badge" data-file="${escapeHtml(src.filename)}" data-page="${src.page_number}" title="Click to view page ${src.page_number} in document viewer">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
                     <span>Source: ${escapeHtml(src.filename)} — Page ${src.page_number}</span>
                 </div>
@@ -445,6 +474,17 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="agent-tag ${tagClass}">${tagText}</div>
             <div class="message-bubble">${formatMarkdownText(data.answer)}${sourcesHtml}</div>
         `;
+
+        // Click source pill -> open PDF viewer modal at target page!
+        row.querySelectorAll('.source-badge').forEach(badge => {
+            badge.style.cursor = 'pointer';
+            badge.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const fn = badge.getAttribute('data-file');
+                const pg = parseInt(badge.getAttribute('data-page') || '1', 10);
+                openPdfModal(fn, pg);
+            });
+        });
 
         chatMessages.appendChild(row);
         scrollToBottom();
@@ -501,14 +541,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function formatMarkdownText(text) {
         if (!text) return '';
-        let formatted = escapeHtml(text);
+        let formatted = escapeHtml(text.trim());
+        // Collapse 3 or more consecutive newlines into 2
+        formatted = formatted.replace(/\n{3,}/g, '\n\n');
         // Bold formatting **text**
         formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         // Italic formatting *text*
         formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        // Bullet lists (* or -)
+        formatted = formatted.replace(/^[\*\-]\s+(.*)$/gm, '• $1');
         // Newlines to <br>
         formatted = formatted.replace(/\n/g, '<br>');
         return formatted;
     }
 });
+
 

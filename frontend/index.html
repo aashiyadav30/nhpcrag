@@ -114,22 +114,17 @@
                 <span id="doc-count-badge" class="badge">0</span>
             </div>
 
-            <!-- Upload Dropzone -->
-            <div class="upload-section">
-                <label for="right-pdf-upload-input" class="upload-dropzone" id="dropzone">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                    <div class="upload-text">
-                        <strong>Click or drag PDFs</strong>
-                        <span>Supports multiple .pdf files</span>
-                    </div>
-                    <input type="file" id="right-pdf-upload-input" accept=".pdf" multiple hidden>
-                </label>
-                <div id="upload-status" class="status-msg hidden"></div>
-            </div>
-
-            <!-- Indexed Files List -->
+            <!-- Indexed Files List & Header Action -->
             <div class="documents-section">
-                <div class="section-title">Indexed Files</div>
+                <div class="documents-header">
+                    <div class="section-title">Indexed Files</div>
+                    <label for="right-pdf-upload-input" class="btn-upload-sm" title="Upload PDF files">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        <span>Upload PDF</span>
+                        <input type="file" id="right-pdf-upload-input" accept=".pdf" multiple hidden>
+                    </label>
+                </div>
+                <div id="upload-status" class="status-msg hidden"></div>
                 <div id="documents-list" class="documents-list">
                     <div class="empty-docs-msg">No PDF documents uploaded yet.</div>
                 </div>
@@ -146,6 +141,31 @@
 
     </div>
 
+    <!-- PDF Document Preview Modal -->
+    <div id="pdf-modal" class="pdf-modal hidden">
+        <div class="pdf-modal-content">
+            <header class="pdf-modal-header">
+                <div class="pdf-modal-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                    <span id="pdf-modal-filename">Document.pdf</span>
+                </div>
+                <div class="pdf-modal-actions">
+                    <a id="pdf-modal-open-tab" href="#" target="_blank" class="btn-modal-action" title="Open in new tab">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                        <span>Open Tab</span>
+                    </a>
+                    <button id="pdf-modal-close" class="btn-modal-close" title="Close preview">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+            </header>
+            <div class="pdf-modal-body">
+                <iframe id="pdf-modal-iframe" src="" width="100%" height="100%"></iframe>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>
+
