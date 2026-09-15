@@ -1,4 +1,5 @@
 import os
+import tempfile
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -7,14 +8,28 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Storage Directories
-UPLOAD_DIR = BASE_DIR / "uploaded_pdfs"
-CHROMA_PERSIST_DIR = BASE_DIR / "chroma_db"
-SESSIONS_DIR = BASE_DIR / "chat_sessions"
+# Detect if running in Vercel or read-only serverless environment
+IS_VERCEL = bool(os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
 
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-CHROMA_PERSIST_DIR.mkdir(parents=True, exist_ok=True)
-SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+if IS_VERCEL:
+    tmp_dir = Path(tempfile.gettempdir())
+    UPLOAD_DIR = tmp_dir / "uploaded_pdfs"
+    CHROMA_PERSIST_DIR = tmp_dir / "chroma_db"
+    SESSIONS_DIR = tmp_dir / "chat_sessions"
+    os.environ["HF_HOME"] = str(tmp_dir / "hf_home")
+    os.environ["SENTENCE_TRANSFORMERS_HOME"] = str(tmp_dir / "st_home")
+else:
+    UPLOAD_DIR = BASE_DIR / "uploaded_pdfs"
+    CHROMA_PERSIST_DIR = BASE_DIR / "chroma_db"
+    SESSIONS_DIR = BASE_DIR / "chat_sessions"
+
+try:
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    CHROMA_PERSIST_DIR.mkdir(parents=True, exist_ok=True)
+    SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+except Exception as e:
+    print(f"Warning creating storage directories: {e}")
+
 
 # API Keys & LLM Provider Configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
