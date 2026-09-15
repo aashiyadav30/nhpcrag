@@ -37,6 +37,8 @@ agent_bot = AgenticRAGBot()
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
+    attached_filename: Optional[str] = None
+
 
 
 class CreateSessionRequest(BaseModel):
@@ -203,7 +205,12 @@ async def chat(request: ChatRequest) -> Dict[str, Any]:
         formatted_history.append({"role": m["role"], "content": m["content"]})
 
     # Process query through Agent
-    result = agent_bot.process_query(user_msg, session_history=formatted_history)
+    result = agent_bot.process_query(
+        user_msg, 
+        session_history=formatted_history,
+        attached_filename=request.attached_filename
+    )
+
 
     # Save user & assistant messages to persistent session store
     updated_session = session_store.add_messages_to_session(session_id, user_msg, result)

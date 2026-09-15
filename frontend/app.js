@@ -6,6 +6,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     // Current Active Session State
     let activeSessionId = null;
+    let activeAttachedFilename = null;
 
     // DOM Elements - Left Sidebar
     const newChatBtn = document.getElementById('new-chat-btn');
@@ -23,6 +24,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorBanner = document.getElementById('error-banner');
     const leftPdfInput = document.getElementById('pdf-upload-input');
 
+    // DOM Elements - Attachment Chip Bar
+    const attachmentChipBar = document.getElementById('attachment-chip-bar');
+    const attachedFileName = document.getElementById('attached-file-name');
+    const removeAttachmentBtn = document.getElementById('remove-attachment-btn');
+
     // DOM Elements - Right Sidebar
     const dropzone = document.getElementById('dropzone');
     const rightPdfInput = document.getElementById('right-pdf-upload-input');
@@ -30,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const documentsList = document.getElementById('documents-list');
     const docCountBadge = document.getElementById('doc-count-badge');
     const clearBtn = document.getElementById('clear-btn');
+
 
     // Initial Load
     init();
@@ -214,6 +221,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const pdfModalOpenTab = document.getElementById('pdf-modal-open-tab');
     const pdfModalClose = document.getElementById('pdf-modal-close');
 
+    // Attachment State Controls
+    function setAttachedFile(filename) {
+        activeAttachedFilename = filename;
+        if (filename) {
+            attachedFileName.textContent = filename;
+            attachmentChipBar.classList.remove('hidden');
+        } else {
+            attachmentChipBar.classList.add('hidden');
+        }
+    }
+
+    if (removeAttachmentBtn) {
+        removeAttachmentBtn.addEventListener('click', () => {
+            setAttachedFile(null);
+            leftPdfInput.value = '';
+        });
+    }
+
     // ================= UPLOAD HANDLERS =================
 
     rightPdfInput.addEventListener('change', () => {
@@ -231,11 +256,13 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleFileUpload(files) {
         const formData = new FormData();
         let pdfCount = 0;
+        let lastPdfName = null;
 
         for (let i = 0; i < files.length; i++) {
             if (files[i].name.toLowerCase().endsWith('.pdf')) {
                 formData.append('files', files[i]);
                 pdfCount++;
+                lastPdfName = files[i].name;
             }
         }
 
@@ -257,6 +284,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 showUploadStatus(data.message, 'success');
                 fetchDocuments();
+                if (lastPdfName) {
+                    setAttachedFile(lastPdfName);
+                }
                 rightPdfInput.value = '';
                 leftPdfInput.value = '';
             } else {
@@ -276,6 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => uploadStatus.classList.add('hidden'), 5000);
         }
     }
+
 
     // ================= DOCUMENT LISTING & PREVIEW =================
 
@@ -388,6 +419,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const query = userInput.value.trim();
         if (!query) return;
 
+        const attachedForQuery = activeAttachedFilename;
+        setAttachedFile(null);
+
         // Ensure active session exists
         if (!activeSessionId) {
             await createNewChatSession();
@@ -397,19 +431,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const wc = document.getElementById('welcome-card');
         if (wc) wc.remove();
 
-        // Render user message
-        appendUserMessage(query);
+        // Render user message with attached document pill if present
+        appendUserMessage(query, attachedForQuery);
         userInput.value = '';
         hideError();
 
-        // Show Loading Indicator
-        showLoading('Agent evaluating query & searching documents...');
+        // Show Loading Indicator with focused status
+        const loadMsg = attachedForQuery
+            ? `Agent evaluating query & analyzing '${attachedForQuery}'...`
+            : 'Agent evaluating query & searching documents...';
+        showLoading(loadMsg);
 
         try {
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: query, session_id: activeSessionId })
+                body: JSON.stringify({ 
+                    message: query, 
+                    session_id: activeSessionId,
+                    attached_filename: attachedForQuery
+                })
             });
 
             const data = await response.json();
@@ -433,10 +474,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function appendUserMessage(text) {
+    function appendUserMessage(text, attachedFilename = null) {
         const row = document.createElement('div');
         row.className = 'message-row user';
+        const attachedBadgeHtml = attachedFilename 
+            ? `<div class="user-attached-file-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg> <span>Attached: ${escapeHtml(attachedFilename)}</span></div>`
+            : '';
         row.innerHTML = `
+            ${attachedBadgeHtml}
             <div class="message-bubble">${escapeHtml(text)}</div>
         `;
         chatMessages.appendChild(row);
@@ -449,9 +494,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Tag for agent routing
         const tagClass = data.searched_docs ? 'searched' : 'direct';
-        const tagText = data.searched_docs 
-            ? `🔍 PDF Search (${escapeHtml(data.search_query || 'document retrieval')})` 
-            : '💡 Direct Answer';
+        let tagText = '💡 Direct Answer';
+        
+        if (data.attached_filename) {
+            tagText = `🎯 Focused PDF Analysis (${escapeHtml(data.attached_filename)})`;
+        } else if (data.searched_docs) {
+            tagText = `🔍 PDF Search (${escapeHtml(data.search_query || 'document retrieval')})`;
+        }
+
 
         let sourcesHtml = '';
         if (data.sources && data.sources.length > 0) {

@@ -20,13 +20,19 @@ class AgenticRAGBot:
     def clear_history(self):
         self.history = []
 
-    def process_query(self, user_query: str, session_history: List[Dict[str, str]] = None) -> Dict[str, Any]:
+    def process_query(
+        self, 
+        user_query: str, 
+        session_history: List[Dict[str, str]] = None,
+        attached_filename: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Main entry point for processing user query.
         1. Accepts optional session_history list for session context.
-        2. Decides if vector retrieval is needed.
-        3. Executes retrieval if necessary.
-        4. Formulates grounded response.
+        2. Accepts optional attached_filename to focus analysis on a target PDF.
+        3. Decides if vector retrieval is needed.
+        4. Executes retrieval if necessary.
+        5. Formulates grounded response.
         """
         if session_history is not None:
             self.history = session_history
@@ -42,18 +48,21 @@ class AgenticRAGBot:
         retrieved_context = ""
         tool_used = False
 
-        # Step 3: Tool Execution (if search is needed)
-        if needs_search and has_documents:
+        # Step 3: Tool Execution (if search is needed or file is attached)
+        if (needs_search or attached_filename) and has_documents:
             tool_used = True
-            tool_result = search_pdf_knowledge_base(query=search_query or user_query, top_k=8)
+            tool_result = search_pdf_knowledge_base(
+                query=search_query or user_query, 
+                top_k=8,
+                target_filename=attached_filename
+            )
             retrieved_context = tool_result["context"]
             sources = tool_result["sources"]
-
 
         # Step 4: Synthesize Answer
         answer = self._generate_answer(
             user_query=user_query,
-            needs_search=needs_search,
+            needs_search=needs_search or bool(attached_filename),
             has_documents=has_documents,
             retrieved_context=retrieved_context,
             sources=sources
@@ -77,8 +86,10 @@ class AgenticRAGBot:
             "searched_docs": tool_used,
             "search_query": search_query if tool_used else None,
             "sources": unique_sources,
-            "has_documents": has_documents
+            "has_documents": has_documents,
+            "attached_filename": attached_filename
         }
+
 
     def _evaluate_search_need(self, user_query: str, has_documents: bool) -> Tuple[bool, Optional[str]]:
         """

@@ -7,13 +7,18 @@ from typing import Dict, Any, List
 from backend.vector_store import search_vector_store
 
 
-def search_pdf_knowledge_base(query: str, top_k: int = 8) -> Dict[str, Any]:
+def search_pdf_knowledge_base(
+    query: str, 
+    top_k: int = 8, 
+    target_filename: str = None
+) -> Dict[str, Any]:
     """
     Retrieves relevant passages from uploaded PDF documents matching the search query.
 
     Args:
         query: The semantic search query string.
         top_k: Maximum number of relevant passages to retrieve (default 8).
+        target_filename: Optional specific PDF filename attached to the query.
 
     Returns:
         Dict containing formatted context string and structured source items.
@@ -33,18 +38,27 @@ def search_pdf_knowledge_base(query: str, top_k: int = 8) -> Dict[str, Any]:
             "raw_results": []
         }
 
-    # Target document filename boosting: Prioritize chunks matching filename keywords in query
+    # Target document filename boosting: Prioritize chunks matching attached file or query keywords
     q_lower = query.lower()
+    target_lower = target_filename.lower().strip() if target_filename else ""
+
     def boost_score(item):
         score = item.get("score", 0)
         fn_lower = item.get("filename", "").lower()
         fn_stem = fn_lower.rsplit(".", 1)[0]
-        # Check for full filename or stem matches or word matches in query
+
+        # Highest priority boost for explicitly attached file
+        if target_lower and (fn_lower == target_lower or fn_stem in target_lower):
+            return score + 2.0
+
+        # High priority boost for filename referenced in query text
         if fn_lower in q_lower or fn_stem in q_lower or (len(fn_stem) > 4 and fn_stem in q_lower):
             return score + 1.0
+
         return score
 
     sorted_results = sorted(relevant_results, key=boost_score, reverse=True)[:top_k]
+
 
     context_snippets = []
     sources = []
