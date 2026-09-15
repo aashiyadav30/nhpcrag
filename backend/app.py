@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from backend.config import UPLOAD_DIR, BASE_DIR
 from backend.ingestion import extract_pages_from_pdf
 from backend.chunking import chunk_extracted_pages
-from backend.vector_store import add_chunks_to_store, list_indexed_documents, clear_vector_store
+from backend.vector_store import add_chunks_to_store, list_indexed_documents, clear_vector_store, delete_document_from_store
 from backend.agent import AgenticRAGBot
 import backend.session_store as session_store
 
@@ -110,6 +110,26 @@ async def get_documents() -> Dict[str, Any]:
         "documents": indexed,
         "count": len(indexed)
     }
+
+
+@app.delete("/api/documents/{filename}")
+async def delete_document_endpoint(filename: str) -> Dict[str, Any]:
+    """
+    Deletes a specific PDF document from ChromaDB vector store and removes disk file.
+    """
+    # Delete from vector database
+    delete_document_from_store(filename)
+
+    # Remove file from disk
+    file_path = UPLOAD_DIR / filename
+    if file_path.exists():
+        file_path.unlink(missing_ok=True)
+
+    return {
+        "status": "success",
+        "message": f"Document '{filename}' deleted successfully."
+    }
+
 
 
 # ================= SESSION MANAGEMENT ENDPOINTS =================

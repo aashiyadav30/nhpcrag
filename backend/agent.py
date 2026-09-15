@@ -45,9 +45,10 @@ class AgenticRAGBot:
         # Step 3: Tool Execution (if search is needed)
         if needs_search and has_documents:
             tool_used = True
-            tool_result = search_pdf_knowledge_base(query=search_query or user_query, top_k=4)
+            tool_result = search_pdf_knowledge_base(query=search_query or user_query, top_k=8)
             retrieved_context = tool_result["context"]
             sources = tool_result["sources"]
+
 
         # Step 4: Synthesize Answer
         answer = self._generate_answer(
@@ -179,12 +180,14 @@ class AgenticRAGBot:
                 "Answer the user's question STRICTLY based on the provided retrieved document passages below.\n\n"
                 "STRICT GROUNDING RULES:\n"
                 "1. Base your answer ONLY on facts present in the retrieved passages.\n"
-                "2. If the passages do not contain enough information to answer the question, clearly state: "
+                "2. Carefully inspect all retrieved passages (including presentation slides, diagrams, and multi-page PDF documents).\n"
+                "3. If the passages contain the answer, provide a clear, thorough answer detailing all requested facts (e.g. problem statement IDs, titles, stakeholders, or policies).\n"
+                "4. If the passages genuinely do not contain enough information to answer the question, state: "
                 "'The provided documents do not contain enough information to answer this question.'\n"
-                "3. Do NOT make up, assume, or extrapolate information not supported by the passages.\n"
-                "4. Keep your answer practical, clean, clear, and professional.\n"
-                "5. Do NOT manually invent citation text like '(Source: ...)'; the system UI automatically displays source metadata cards below your answer."
+                "5. Do NOT make up, assume, or extrapolate information not supported by the passages.\n"
+                "6. Do NOT manually invent citation text like '(Source: ...)'; the system UI automatically displays source metadata cards below your answer."
             )
+
 
             prompt = (
                 f"Conversation History:\n{recent_history}\n\n"

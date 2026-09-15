@@ -318,10 +318,39 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="doc-name" title="${escapeHtml(doc.filename)}">${escapeHtml(doc.filename)}</div>
                     <div class="doc-meta">${doc.total_pages} page(s) • ${doc.chunks_count} chunk(s)</div>
                 </div>
+                <button class="delete-doc-btn" title="Delete document from repository">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
             `;
+
+            const delBtn = item.querySelector('.delete-doc-btn');
+            delBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteDocument(doc.filename);
+            });
+
             documentsList.appendChild(item);
         });
     }
+
+    async function deleteDocument(filename) {
+        if (!confirm(`Are you sure you want to delete '${filename}' from the repository?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/documents/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+            if (response.ok) {
+                showUploadStatus(`Deleted '${filename}' from repository.`, 'success');
+                fetchDocuments();
+            } else {
+                showUploadStatus(`Failed to delete '${filename}'.`, 'error');
+            }
+        } catch (err) {
+            showUploadStatus('Error deleting document.', 'error');
+        }
+    }
+
 
     // ================= CHAT FORM SUBMIT =================
 

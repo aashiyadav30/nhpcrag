@@ -142,3 +142,17 @@ def clear_vector_store() -> bool:
             metadata={"hnsw:space": "cosine"}
         )
     return True
+
+
+def delete_document_from_store(filename: str) -> bool:
+    """
+    Deletes all vector chunks associated with a specific filename from ChromaDB.
+    """
+    collection = get_vector_store()
+    try:
+        collection.delete(where={"filename": filename})
+        return True
+    except Exception as e:
+        print(f"Error deleting document '{filename}' from vector store: {e}")
+        return False
+

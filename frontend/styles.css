@@ -619,6 +619,31 @@ body {
 .doc-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #f1f5f9; }
 .doc-meta { font-size: 10px; color: var(--sidebar-muted); }
 
+.delete-doc-btn {
+    background: transparent;
+    border: none;
+    color: var(--sidebar-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+    transition: all 0.15s ease;
+    margin-left: auto;
+}
+
+.doc-item:hover .delete-doc-btn {
+    opacity: 1;
+}
+
+.delete-doc-btn:hover {
+    color: #ef4444;
+    background-color: rgba(239, 68, 68, 0.15);
+}
+
+
 .sidebar-footer {
     padding: 14px;
     border-top: 1px solid var(--sidebar-border);
