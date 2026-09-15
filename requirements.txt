@@ -1,0 +1,12 @@
+fastapi>=0.110.0
+uvicorn>=0.28.0
+pypdf>=4.1.0
+sentence-transformers>=2.5.0
+chromadb>=0.4.24
+python-dotenv>=1.0.1
+pydantic>=2.6.0
+google-genai>=0.1.1
+openai>=1.14.0
+python-multipart>=0.0.9
+pymupdf>=1.24.0
+reportlab>=4.1.0
