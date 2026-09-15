@@ -20,14 +20,17 @@ class AgenticRAGBot:
     def clear_history(self):
         self.history = []
 
-    def process_query(self, user_query: str) -> Dict[str, Any]:
+    def process_query(self, user_query: str, session_history: List[Dict[str, str]] = None) -> Dict[str, Any]:
         """
         Main entry point for processing user query.
-        1. Decides if vector retrieval is needed.
-        2. Executes retrieval if necessary.
-        3. Formulates grounded response.
-        4. Updates conversation history.
+        1. Accepts optional session_history list for session context.
+        2. Decides if vector retrieval is needed.
+        3. Executes retrieval if necessary.
+        4. Formulates grounded response.
         """
+        if session_history is not None:
+            self.history = session_history
+
         # Step 1: Check if documents are uploaded
         indexed_docs = list_indexed_documents()
         has_documents = len(indexed_docs) > 0

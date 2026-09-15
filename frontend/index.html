@@ -8,58 +8,39 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Sidebar Navigation & Ingestion Panel -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="brand-logo">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                </div>
-                <div>
-                    <h2>Document Repository</h2>
-                    <span class="subtext">Manage PDF Knowledge Base</span>
-                </div>
-            </div>
-
-            <!-- Upload Section -->
-            <div class="upload-section">
-                <label for="pdf-upload-input" class="upload-dropzone" id="dropzone">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                    <div class="upload-text">
-                        <strong>Click or drag PDFs here</strong>
-                        <span>Supports multiple .pdf files</span>
-                    </div>
-                    <input type="file" id="pdf-upload-input" accept=".pdf" multiple hidden>
-                </label>
-                <div id="upload-status" class="status-msg hidden"></div>
-            </div>
-
-            <!-- Indexed Documents List -->
-            <div class="documents-section">
-                <div class="section-title">
-                    <span>Indexed Documents</span>
-                    <span id="doc-count-badge" class="badge">0</span>
-                </div>
-                <div id="documents-list" class="documents-list">
-                    <div class="empty-docs-msg">No PDF documents uploaded yet.</div>
-                </div>
-            </div>
-
-            <!-- Clear Action -->
-            <div class="sidebar-footer">
-                <button id="clear-btn" class="btn btn-outline-danger" title="Clear all indexed documents and chat history">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                    Reset Knowledge Base
+        
+        <!-- LEFT PANEL: Chat History & Sessions (ChatGPT Style) -->
+        <aside class="left-sidebar">
+            <div class="sidebar-top">
+                <button id="new-chat-btn" class="btn btn-new-chat">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    <span>New chat</span>
                 </button>
+            </div>
+
+            <!-- Recent Chats List -->
+            <div class="recents-section">
+                <div class="recents-header">Recents</div>
+                <div id="session-list" class="session-list">
+                    <!-- Session items rendered dynamically -->
+                </div>
+            </div>
+
+            <div class="sidebar-user">
+                <div class="user-avatar">AY</div>
+                <div class="user-info">
+                    <span class="user-name">Aashi Yadav</span>
+                    <span class="user-role">Internal Workspace</span>
+                </div>
             </div>
         </aside>
 
-        <!-- Main Chat Panel -->
+        <!-- CENTER PANEL: Active Conversational Window -->
         <main class="chat-panel">
-            <!-- App Header -->
             <header class="chat-header">
-                <div class="header-titles">
-                    <h1>Company Knowledge Assistant</h1>
-                    <span class="header-tag">Internal Agentic RAG Tool</span>
+                <div class="header-info">
+                    <h1 id="current-session-title">New Chat</h1>
+                    <span class="header-tag">Agentic RAG Assistant</span>
                 </div>
                 <div class="header-status">
                     <span class="status-dot online"></span>
@@ -67,22 +48,22 @@
                 </div>
             </header>
 
-            <!-- Chat Messages Display -->
+            <!-- Message Thread Display Area -->
             <div id="chat-messages" class="chat-messages">
-                <!-- Welcome Banner -->
-                <div class="welcome-card">
+                <!-- Welcome Card -->
+                <div class="welcome-card" id="welcome-card">
                     <div class="welcome-header">
-                        <h3>Welcome to Company Knowledge Assistant</h3>
+                        <h3>Where should we begin?</h3>
                     </div>
-                    <p>This assistant uses an **Agentic RAG pipeline** to answer questions grounded in your uploaded company documents.</p>
+                    <p>Ask questions grounded in your uploaded company documents or start a general query.</p>
                     <div class="features-grid">
                         <div class="feature-item">
-                            <strong>📄 PDF Ingestion</strong>
-                            <span>Upload company policies, guides, or manuals.</span>
+                            <strong>📄 Upload PDFs</strong>
+                            <span>Drop PDFs in the right panel or use the attachment paperclip below.</span>
                         </div>
                         <div class="feature-item">
                             <strong>🤖 Smart Agent Routing</strong>
-                            <span>Decides when document search is required vs. direct answers.</span>
+                            <span>Decides when to search internal documents vs direct answers.</span>
                         </div>
                         <div class="feature-item">
                             <strong>📌 Exact Source Citations</strong>
@@ -101,10 +82,17 @@
             <!-- Error Banner -->
             <div id="error-banner" class="error-banner hidden"></div>
 
-            <!-- Chat Input Area -->
+            <!-- Chat Input Footer -->
             <footer class="chat-input-area">
                 <form id="chat-form" class="chat-form">
-                    <input type="text" id="user-input" placeholder="Ask a question about uploaded PDFs or general topic..." autocomplete="off" required>
+                    <!-- PDF Attachment Paperclip Button -->
+                    <label for="pdf-upload-input" class="attach-btn" title="Upload PDF documents to knowledge base">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                        <input type="file" id="pdf-upload-input" accept=".pdf" multiple hidden>
+                    </label>
+
+                    <input type="text" id="user-input" placeholder="Ask anything about uploaded PDFs or general topic..." autocomplete="off" required>
+
                     <button type="submit" id="send-btn" class="btn btn-primary">
                         <span>Send</span>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
@@ -112,6 +100,50 @@
                 </form>
             </footer>
         </main>
+
+        <!-- RIGHT PANEL: Document Knowledge Repository -->
+        <aside class="right-sidebar">
+            <div class="sidebar-header">
+                <div class="brand-logo">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                </div>
+                <div>
+                    <h2>Document Repository</h2>
+                    <span class="subtext">PDF Knowledge Base</span>
+                </div>
+                <span id="doc-count-badge" class="badge">0</span>
+            </div>
+
+            <!-- Upload Dropzone -->
+            <div class="upload-section">
+                <label for="right-pdf-upload-input" class="upload-dropzone" id="dropzone">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <div class="upload-text">
+                        <strong>Click or drag PDFs</strong>
+                        <span>Supports multiple .pdf files</span>
+                    </div>
+                    <input type="file" id="right-pdf-upload-input" accept=".pdf" multiple hidden>
+                </label>
+                <div id="upload-status" class="status-msg hidden"></div>
+            </div>
+
+            <!-- Indexed Files List -->
+            <div class="documents-section">
+                <div class="section-title">Indexed Files</div>
+                <div id="documents-list" class="documents-list">
+                    <div class="empty-docs-msg">No PDF documents uploaded yet.</div>
+                </div>
+            </div>
+
+            <!-- Repository Clear Action -->
+            <div class="sidebar-footer">
+                <button id="clear-btn" class="btn btn-outline-danger" title="Clear repository documents">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    Reset Knowledge Base
+                </button>
+            </div>
+        </aside>
+
     </div>
 
     <script src="app.js"></script>

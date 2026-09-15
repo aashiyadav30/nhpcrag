@@ -10,9 +10,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Storage Directories
 UPLOAD_DIR = BASE_DIR / "uploaded_pdfs"
 CHROMA_PERSIST_DIR = BASE_DIR / "chroma_db"
+SESSIONS_DIR = BASE_DIR / "chat_sessions"
 
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 CHROMA_PERSIST_DIR.mkdir(parents=True, exist_ok=True)
+SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 
 # API Keys & LLM Provider Configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")

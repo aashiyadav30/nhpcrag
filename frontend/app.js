@@ -1,29 +1,216 @@
 /**
  * Company Knowledge Assistant - Client App Logic
+ * Supports 3-column ChatGPT-style interface, multi-session chat history, and document repository.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // DOM Elements
-    const dropzone = document.getElementById('dropzone');
-    const fileInput = document.getElementById('pdf-upload-input');
-    const uploadStatus = document.getElementById('upload-status');
-    const documentsList = document.getElementById('documents-list');
-    const docCountBadge = document.getElementById('doc-count-badge');
-    const clearBtn = document.getElementById('clear-btn');
-    
+    // Current Active Session State
+    let activeSessionId = null;
+
+    // DOM Elements - Left Sidebar
+    const newChatBtn = document.getElementById('new-chat-btn');
+    const sessionList = document.getElementById('session-list');
+
+    // DOM Elements - Center Chat Panel
+    const currentSessionTitle = document.getElementById('current-session-title');
     const chatMessages = document.getElementById('chat-messages');
+    const welcomeCard = document.getElementById('welcome-card');
     const chatForm = document.getElementById('chat-form');
     const userInput = document.getElementById('user-input');
     const sendBtn = document.getElementById('send-btn');
     const agentLoading = document.getElementById('agent-loading');
     const loadingText = document.getElementById('loading-text');
     const errorBanner = document.getElementById('error-banner');
+    const leftPdfInput = document.getElementById('pdf-upload-input');
 
-    // Initialize document list
-    fetchDocuments();
+    // DOM Elements - Right Sidebar
+    const dropzone = document.getElementById('dropzone');
+    const rightPdfInput = document.getElementById('right-pdf-upload-input');
+    const uploadStatus = document.getElementById('upload-status');
+    const documentsList = document.getElementById('documents-list');
+    const docCountBadge = document.getElementById('doc-count-badge');
+    const clearBtn = document.getElementById('clear-btn');
+
+    // Initial Load
+    init();
+
+    async function init() {
+        await fetchDocuments();
+        await fetchSessionsAndLoadActive();
+    }
+
+    // ================= SESSION MANAGEMENT =================
+
+    async function fetchSessionsAndLoadActive(preferredSessionId = null) {
+        try {
+            const response = await fetch('/api/sessions');
+            const data = await response.json();
+            const sessions = data.sessions || [];
+
+            renderSessionList(sessions);
+
+            if (sessions.length > 0) {
+                if (preferredSessionId && sessions.some(s => s.session_id === preferredSessionId)) {
+                    activeSessionId = preferredSessionId;
+                } else if (!activeSessionId || !sessions.some(s => s.session_id === activeSessionId)) {
+                    activeSessionId = sessions[0].session_id;
+                }
+                await loadSession(activeSessionId);
+            } else {
+                // No existing sessions, create a default first chat session
+                await createNewChatSession();
+            }
+        } catch (err) {
+            console.error('Failed to fetch chat sessions:', err);
+        }
+    }
+
+    function renderSessionList(sessions) {
+        sessionList.innerHTML = '';
+        if (sessions.length === 0) {
+            sessionList.innerHTML = '<div class="empty-sessions-msg">No recent chats</div>';
+            return;
+        }
+
+        sessions.forEach(session => {
+            const item = document.createElement('div');
+            item.className = `session-item ${session.session_id === activeSessionId ? 'active' : ''}`;
+            item.setAttribute('data-id', session.session_id);
+
+            item.innerHTML = `
+                <svg class="session-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                <span class="session-title" title="${escapeHtml(session.title)}">${escapeHtml(session.title)}</span>
+                <button class="delete-session-btn" title="Delete chat session">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
+            `;
+
+            // Click session item -> select session
+            item.addEventListener('click', (e) => {
+                if (e.target.closest('.delete-session-btn')) return;
+                if (activeSessionId !== session.session_id) {
+                    loadSession(session.session_id);
+                }
+            });
+
+            // Click delete button -> delete session
+            const delBtn = item.querySelector('.delete-session-btn');
+            delBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteSession(session.session_id);
+            });
+
+            sessionList.appendChild(item);
+        });
+    }
+
+    newChatBtn.addEventListener('click', () => {
+        createNewChatSession();
+    });
+
+    async function createNewChatSession() {
+        try {
+            const response = await fetch('/api/sessions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: 'New Chat' })
+            });
+
+            const newSession = await response.json();
+            if (response.ok && newSession.session_id) {
+                activeSessionId = newSession.session_id;
+                await fetchSessionsAndLoadActive(activeSessionId);
+            }
+        } catch (err) {
+            console.error('Failed to create new chat session:', err);
+        }
+    }
+
+    async function loadSession(sessionId) {
+        try {
+            const response = await fetch(`/api/sessions/${sessionId}`);
+            if (!response.ok) return;
+
+            const session = await response.json();
+            activeSessionId = session.session_id;
+            currentSessionTitle.textContent = session.title || 'New Chat';
+
+            // Highlight active in session list
+            document.querySelectorAll('.session-item').forEach(el => {
+                el.classList.toggle('active', el.getAttribute('data-id') === sessionId);
+            });
+
+            // Render message history
+            renderMessageHistory(session.messages || []);
+        } catch (err) {
+            console.error(`Failed to load session ${sessionId}:`, err);
+        }
+    }
+
+    async function deleteSession(sessionId) {
+        try {
+            const response = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
+            if (response.ok) {
+                if (activeSessionId === sessionId) {
+                    activeSessionId = null;
+                }
+                await fetchSessionsAndLoadActive(activeSessionId);
+            }
+        } catch (err) {
+            console.error(`Failed to delete session ${sessionId}:`, err);
+        }
+    }
+
+    function renderMessageHistory(messages) {
+        chatMessages.innerHTML = '';
+
+        if (!messages || messages.length === 0) {
+            // Render Welcome Card
+            chatMessages.innerHTML = `
+                <div class="welcome-card" id="welcome-card">
+                    <div class="welcome-header">
+                        <h3>Where should we begin?</h3>
+                    </div>
+                    <p>Ask questions grounded in your uploaded company documents or start a general query.</p>
+                    <div class="features-grid">
+                        <div class="feature-item">
+                            <strong>📄 Upload PDFs</strong>
+                            <span>Drop PDFs in the right panel or use the attachment paperclip below.</span>
+                        </div>
+                        <div class="feature-item">
+                            <strong>🤖 Smart Agent Routing</strong>
+                            <span>Decides when to search internal documents vs direct answers.</span>
+                        </div>
+                        <div class="feature-item">
+                            <strong>📌 Exact Source Citations</strong>
+                            <span>Shows PDF filename and page number for every document answer.</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        messages.forEach(msg => {
+            if (msg.role === 'user') {
+                appendUserMessage(msg.content);
+            } else if (msg.role === 'assistant') {
+                appendAssistantMessage({
+                    answer: msg.content,
+                    searched_docs: msg.searched_docs,
+                    search_query: msg.search_query,
+                    sources: msg.sources || []
+                });
+            }
+        });
+
+        scrollToBottom();
+    }
 
     // ================= UPLOAD HANDLERS =================
-    dropzone.addEventListener('click', () => fileInput.click());
+
+    // Right Sidebar Dropzone click
+    dropzone.addEventListener('click', () => rightPdfInput.click());
 
     dropzone.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -40,9 +227,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    fileInput.addEventListener('change', () => {
-        if (fileInput.files.length > 0) {
-            handleFileUpload(fileInput.files);
+    rightPdfInput.addEventListener('change', () => {
+        if (rightPdfInput.files.length > 0) {
+            handleFileUpload(rightPdfInput.files);
+        }
+    });
+
+    leftPdfInput.addEventListener('change', () => {
+        if (leftPdfInput.files.length > 0) {
+            handleFileUpload(leftPdfInput.files);
         }
     });
 
@@ -75,7 +268,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 showUploadStatus(data.message, 'success');
                 fetchDocuments();
-                fileInput.value = '';
+                rightPdfInput.value = '';
+                leftPdfInput.value = '';
             } else {
                 showUploadStatus(data.detail || 'Failed to process PDFs.', 'error');
             }
@@ -95,6 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================= DOCUMENT LISTING =================
+
     async function fetchDocuments() {
         try {
             const response = await fetch('/api/documents');
@@ -128,11 +323,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ================= CHAT HANDLERS =================
+    // ================= CHAT FORM SUBMIT =================
+
     chatForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const query = userInput.value.trim();
         if (!query) return;
+
+        // Ensure active session exists
+        if (!activeSessionId) {
+            await createNewChatSession();
+        }
+
+        // Remove Welcome Card if present
+        const wc = document.getElementById('welcome-card');
+        if (wc) wc.remove();
 
         // Render user message
         appendUserMessage(query);
@@ -140,19 +345,26 @@ document.addEventListener('DOMContentLoaded', () => {
         hideError();
 
         // Show Loading Indicator
-        showLoading('Agent evaluating query...');
+        showLoading('Agent evaluating query & searching documents...');
 
         try {
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: query })
+                body: JSON.stringify({ message: query, session_id: activeSessionId })
             });
 
             const data = await response.json();
 
             if (response.ok) {
                 appendAssistantMessage(data);
+                if (data.session_title) {
+                    currentSessionTitle.textContent = data.session_title;
+                }
+                // Refresh left sidebar sessions list to show auto-generated title
+                const resSessions = await fetch('/api/sessions');
+                const dataSessions = await resSessions.json();
+                renderSessionList(dataSessions.sessions || []);
             } else {
                 showError(data.detail || 'An error occurred while processing your request.');
             }
@@ -209,21 +421,17 @@ document.addEventListener('DOMContentLoaded', () => {
         scrollToBottom();
     }
 
-    // ================= CLEAR SESSION =================
+    // ================= CLEAR KNOWLEDGE BASE =================
+
     clearBtn.addEventListener('click', async () => {
-        if (!confirm('Are you sure you want to clear all indexed documents and chat history?')) {
+        if (!confirm('Are you sure you want to clear all indexed documents in the repository?')) {
             return;
         }
 
         try {
             const response = await fetch('/api/clear', { method: 'POST' });
             if (response.ok) {
-                chatMessages.innerHTML = `
-                    <div class="welcome-card">
-                        <div class="welcome-header"><h3>Knowledge Base Reset</h3></div>
-                        <p>All documents and conversation history have been cleared. Upload new PDFs to begin!</p>
-                    </div>
-                `;
+                showUploadStatus('Knowledge base cleared successfully.', 'success');
                 fetchDocuments();
             }
         } catch (err) {
@@ -232,6 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ================= UTILITIES =================
+
     function showLoading(msg) {
         loadingText.textContent = msg;
         agentLoading.classList.remove('hidden');
@@ -264,11 +473,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function formatMarkdownText(text) {
         if (!text) return '';
         let formatted = escapeHtml(text);
-        // Bold formatting
+        // Bold formatting **text**
         formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        // Italic formatting
+        // Italic formatting *text*
         formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
-        // Newlines
+        // Newlines to <br>
+        formatted = formatted.replace(/\n/g, '<br>');
         return formatted;
     }
 });
+

@@ -1,9 +1,9 @@
 """
 FastAPI Backend Application
-Provides REST API endpoints for PDF uploading, document index management, and Agentic RAG chat.
+Provides REST API endpoints for PDF uploading, document index management, session history, and Agentic RAG chat.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pathlib import Path
 import shutil
 
@@ -17,6 +17,7 @@ from backend.ingestion import extract_pages_from_pdf
 from backend.chunking import chunk_extracted_pages
 from backend.vector_store import add_chunks_to_store, list_indexed_documents, clear_vector_store
 from backend.agent import AgenticRAGBot
+import backend.session_store as session_store
 
 app = FastAPI(title="Company Knowledge Assistant - Agentic RAG")
 
@@ -35,6 +36,11 @@ agent_bot = AgenticRAGBot()
 
 class ChatRequest(BaseModel):
     message: str
+    session_id: Optional[str] = None
+
+
+class CreateSessionRequest(BaseModel):
+    title: Optional[str] = "New Chat"
 
 
 @app.post("/api/upload")
@@ -106,23 +112,91 @@ async def get_documents() -> Dict[str, Any]:
     }
 
 
+# ================= SESSION MANAGEMENT ENDPOINTS =================
+
+@app.get("/api/sessions")
+async def get_sessions() -> Dict[str, Any]:
+    """
+    Returns list of all saved chat sessions sorted by recent updates.
+    """
+    sessions = session_store.list_sessions()
+    return {
+        "sessions": sessions,
+        "count": len(sessions)
+    }
+
+
+@app.post("/api/sessions")
+async def create_new_session(req: Optional[CreateSessionRequest] = None) -> Dict[str, Any]:
+    """
+    Creates a new empty chat session.
+    """
+    title = req.title if req and req.title else "New Chat"
+    session = session_store.create_session(title=title)
+    return session
+
+
+@app.get("/api/sessions/{session_id}")
+async def get_session_detail(session_id: str) -> Dict[str, Any]:
+    """
+    Retrieves a specific chat session with its full message history.
+    """
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found.")
+    return session
+
+
+@app.delete("/api/sessions/{session_id}")
+async def delete_session_endpoint(session_id: str) -> Dict[str, Any]:
+    """
+    Deletes a specific chat session.
+    """
+    success = session_store.delete_session(session_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Chat session not found.")
+    return {"status": "success", "message": f"Session {session_id} deleted."}
+
+
 @app.post("/api/chat")
 async def chat(request: ChatRequest) -> Dict[str, Any]:
     """
-    Processes user query using Agentic RAG decision pipeline.
+    Processes user query within a persistent chat session context.
     """
     user_msg = request.message.strip()
     if not user_msg:
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
 
-    result = agent_bot.process_query(user_msg)
+    # Get or create session
+    session_id = request.session_id
+    current_session = None
+    if session_id:
+        current_session = session_store.get_session(session_id)
+    
+    if not current_session:
+        current_session = session_store.create_session(title="New Chat")
+        session_id = current_session["session_id"]
+
+    # Extract conversation history formatted for AgenticRAGBot
+    formatted_history = []
+    for m in current_session.get("messages", []):
+        formatted_history.append({"role": m["role"], "content": m["content"]})
+
+    # Process query through Agent
+    result = agent_bot.process_query(user_msg, session_history=formatted_history)
+
+    # Save user & assistant messages to persistent session store
+    updated_session = session_store.add_messages_to_session(session_id, user_msg, result)
+
+    result["session_id"] = session_id
+    result["session_title"] = updated_session.get("title", "Chat")
     return result
 
 
 @app.post("/api/clear")
 async def clear_session() -> Dict[str, Any]:
     """
-    Clears vector store documents, uploaded PDF files, and resets chat session memory.
+    Clears vector store documents and uploaded PDF files.
     """
     agent_bot.clear_history()
     clear_vector_store()
@@ -134,7 +208,7 @@ async def clear_session() -> Dict[str, Any]:
 
     return {
         "status": "success",
-        "message": "Knowledge base and conversation history cleared."
+        "message": "Knowledge base repository cleared."
     }
 
 
