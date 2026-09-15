@@ -1,0 +1,7 @@
+[project]
+name = "nhpc"
+version = "0.1.0"
+description = "Agentic RAG Company Knowledge Assistant"
+
+[tool.vercel]
+entrypoint = "backend.app:app"
