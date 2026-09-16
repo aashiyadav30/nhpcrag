@@ -3,6 +3,8 @@
  * Supports 3-column ChatGPT-style interface, multi-session chat history, and document repository.
  */
 
+const API_BASE = 'https://nhpcragbackendd.onrender.com';
+
 document.addEventListener('DOMContentLoaded', () => {
     // Current Active Session State
     let activeSessionId = null;
@@ -50,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchSessionsAndLoadActive(preferredSessionId = null) {
         try {
-            const response = await fetch('/api/sessions');
+            const response = await fetch(`${API_BASE}/api/sessions`);
             const data = await response.json();
             const sessions = data.sessions || [];
 
@@ -117,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function createNewChatSession() {
         try {
-            const response = await fetch('/api/sessions', {
+            const response = await fetch(`${API_BASE}/api/sessions`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title: 'New Chat' })
@@ -135,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadSession(sessionId) {
         try {
-            const response = await fetch(`/api/sessions/${sessionId}`);
+            const response = await fetch(`${API_BASE}/api/sessions/${sessionId}`);
             if (!response.ok) return;
 
             const session = await response.json();
@@ -156,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function deleteSession(sessionId) {
         try {
-            const response = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
+            const response = await fetch(`${API_BASE}/api/sessions/${sessionId}`, { method: 'DELETE' });
             if (response.ok) {
                 if (activeSessionId === sessionId) {
                     activeSessionId = null;
@@ -274,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showUploadStatus(`Processing ${pdfCount} PDF document(s)...`, 'info');
 
         try {
-            const response = await fetch('/api/upload', {
+            const response = await fetch(`${API_BASE}/api/upload`, {
                 method: 'POST',
                 body: formData
             });
@@ -312,7 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchDocuments() {
         try {
-            const response = await fetch('/api/documents');
+            const response = await fetch(`${API_BASE}/api/documents`);
             const data = await response.json();
 
             if (data.documents && data.documents.length > 0) {
@@ -367,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const response = await fetch(`/api/documents/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+            const response = await fetch(`${API_BASE}/api/documents/${encodeURIComponent(filename)}`, { method: 'DELETE' });
             if (response.ok) {
                 showUploadStatus(`Deleted '${filename}' from repository.`, 'success');
                 fetchDocuments();
@@ -443,7 +445,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showLoading(loadMsg);
 
         try {
-            const response = await fetch('/api/chat', {
+            const response = await fetch(`${API_BASE}/api/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
@@ -461,7 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     currentSessionTitle.textContent = data.session_title;
                 }
                 // Refresh left sidebar sessions list to show auto-generated title
-                const resSessions = await fetch('/api/sessions');
+                const resSessions = await fetch(`${API_BASE}/api/sessions`);
                 const dataSessions = await resSessions.json();
                 renderSessionList(dataSessions.sessions || []);
             } else {
@@ -548,7 +550,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const response = await fetch('/api/clear', { method: 'POST' });
+            const response = await fetch(`${API_BASE}/api/clear`, { method: 'POST' });
             if (response.ok) {
                 showUploadStatus('Knowledge base cleared successfully.', 'success');
                 fetchDocuments();
